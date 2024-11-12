@@ -1,6 +1,7 @@
 
 #ifndef GTENSOR_BACKEND_HIP_H
 #define GTENSOR_BACKEND_HIP_H
+#define HAVE_COHERENT_MEMORY 1
 
 #include "backend_common.h"
 
@@ -70,14 +71,22 @@ struct gallocator<gt::space::hip>
   static T* allocate(size_type n)
   {
     T* p;
+#ifdef HAVE_COHERENT_MEMORY
+    gtGpuCheck(hipHostMalloc(&p, sizeof(T) * n));
+#else
     gtGpuCheck(hipMalloc(&p, sizeof(T) * n));
+#endif
     return p;
   }
 
   template <typename T>
   static void deallocate(T* p)
   {
+#ifdef HAVE_COHERENT_MEMORY
+    gtGpuCheck(hipHostFree(p));
+#else
     gtGpuCheck(hipFree(p));
+#endif
   }
 };
 
@@ -92,6 +101,8 @@ struct gallocator<gt::space::hip_managed>
     auto mtype = gt::backend::get_managed_memory_type();
     if (mtype == gt::backend::managed_memory_type::device) {
       gtGpuCheck(hipMalloc(&p, nbytes));
+    } else if (mtype == gt::backend::managed_memory_type::host) {
+      gtGpuCheck(hipHostMalloc(&p, nbytes));
 #if HIP_VERSION_MAJOR >= 5
     } else if (mtype == gt::backend::managed_memory_type::managed_fine) {
       gtGpuCheck(hipMallocManaged(&p, nbytes));
@@ -117,7 +128,12 @@ struct gallocator<gt::space::hip_managed>
   template <typename T>
   static void deallocate(T* p)
   {
-    gtGpuCheck(hipFree(p));
+    auto mtype = gt::backend::get_managed_memory_type();
+    if (mtype == gt::backend::managed_memory_type::host) {
+      gtGpuCheck(hipHostFree(p));
+    } else {
+      gtGpuCheck(hipFree(p));
+    }
   }
 }; // namespace allocator_impl
 
@@ -150,10 +166,15 @@ template <typename InputPtr, typename OutputPtr>
 inline void copy_n(gt::space::hip tag_in, gt::space::hip tag_out, InputPtr in,
                    size_type count, OutputPtr out)
 {
+#ifdef HAVE_COHERENT_MEMORY
+  std::memcpy(gt::raw_pointer_cast(out), gt::raw_pointer_cast(in),
+    sizeof(typename gt::pointer_traits<InputPtr>::element_type) * count);
+#else
   gtGpuCheck(hipMemcpy(
     gt::raw_pointer_cast(out), gt::raw_pointer_cast(in),
     sizeof(typename gt::pointer_traits<InputPtr>::element_type) * count,
     hipMemcpyDeviceToDevice));
+#endif
 }
 
 template <typename InputPtr, typename OutputPtr>
@@ -323,8 +344,12 @@ public:
   template <typename T>
   static void copy_async_dd(const T* src, T* dst, size_type count)
   {
+  #ifdef HAVE_COHERENT_MEMORY
+    std::memcpy(dst, src, sizeof(T) * count);
+  #else
     gtGpuCheck(
       hipMemcpyAsync(dst, src, sizeof(T) * count, hipMemcpyDeviceToDevice));
+  #endif
   }
 
   class stream_view : public stream_interface::stream_view_base<hipStream_t>

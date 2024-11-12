@@ -205,6 +205,7 @@ if ("hip" IN_LIST GTENSOR_BUILD_DEVICES)
       CACHE STRING "GPU targets to compile for")
   find_package(hip REQUIRED)
   find_package(rocthrust REQUIRED)
+  find_package(rocblas REQUIRED)
 
   if (GTENSOR_USE_THRUST)
     target_compile_definitions(gtensor_hip INTERFACE GTENSOR_USE_THRUST)
@@ -213,6 +214,7 @@ if ("hip" IN_LIST GTENSOR_BUILD_DEVICES)
   target_link_libraries(gtensor_hip INTERFACE hip::device hip::amdhip64)
   target_link_libraries(gtensor_hip INTERFACE ${ROCM_PATH}/lib/libroctracer64.so)
   target_link_libraries(gtensor_hip INTERFACE roc::rocthrust)
+  target_link_libraries(gtensor_hip INTERFACE roc::rocblas)
 
   if (HIP_GCC_TOOLCHAIN)
     target_compile_options(gtensor_hip INTERFACE

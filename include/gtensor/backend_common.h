@@ -52,7 +52,8 @@ enum class managed_memory_type
   managed,
   device,
   managed_fine,
-  managed_coarse
+  managed_coarse,
+  host
 };
 #else
 enum class managed_memory_type
