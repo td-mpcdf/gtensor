@@ -206,7 +206,7 @@ jobs:
       run: apt-get update && apt-get install -y wget git
     - name: install cmake
       run: |
-        wget -O cmake.sh 'https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4-Linux-x86_64.sh'
+        wget -O cmake.sh 'https://github.com/Kitware/CMake/releases/download/v3.31.11/cmake-3.31.11-Linux-x86_64.sh'
         bash cmake.sh --prefix=/usr --skip-license --exclude-subdir
     - name: install googletest
       run: |
